@@ -105,19 +105,6 @@ if (enabled && rtlPercentage > 10) {
 - The extension attempts to keep code blocks in LTR format
 - If code blocks are still RTL, you may need to add specific selectors to `styles.css`
 
-## Development
-
-### File Structure
-
-```
-RTF AI/
-├── manifest.json       # Extension manifest
-├── content.js         # Main content script
-├── styles.css         # RTL styling
-├── README.md          # Documentation
-└── icons/             # Extension icons (optional)
-```
-
 ## License
 
 MIT License - Feel free to use, modify, and distribute.
