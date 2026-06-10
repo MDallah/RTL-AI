@@ -1,0 +1,40 @@
+{
+  "manifest_version": 3,
+  "name": "RTL AI",
+  "version": "1.0.0",
+  "description": "Automatically detects and fixes RTL (right-to-left) text in AI responses from ChatGPT, Gemini, Claude, and more",
+  "permissions": ["storage", "activeTab"],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://chatgpt.com/*",
+        "https://chat.openai.com/*",
+        "https://gemini.google.com/*",
+        "https://claude.ai/*",
+        "https://qwen.ai/*",
+        "https://chat.qwen.ai/*",
+        "https://kimi.moonshot.cn/*",
+        "https://www.kimi.com/*",
+        "https://aistudio.google.com/*",
+        "https://deepseek.com/*",
+        "https://chat.deepseek.com/*",
+        "https://www.deepseek.com/*",
+        "https://perplexity.ai/*",
+        "https://www.perplexity.ai/*",
+        "https://copilot.microsoft.com/*",
+        "https://www.bing.com/*"
+      ],
+      "js": ["content.js"],
+      "css": ["styles.css"],
+      "run_at": "document_end"
+    }
+  ],
+  "action": {
+    "default_title": "RTL AI",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  }
+}

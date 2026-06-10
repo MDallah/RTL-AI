@@ -1,0 +1,96 @@
+/* RTL AI - Styles */
+
+/* RTL Fixed Elements */
+.ai-rtl-fixed {
+  direction: rtl !important;
+  text-align: right !important;
+  unicode-bidi: plaintext !important;
+}
+
+/* Ensure RTL text is properly displayed */
+.ai-rtl-fixed * {
+  direction: rtl !important;
+  text-align: right !important;
+}
+
+/* Toggle Button Styles */
+.ai-rtl-toggle-btn {
+  position: fixed !important;
+  bottom: 30px !important;
+  right: 30px !important;
+  z-index: 999999 !important;
+  padding: 5px 10px 7px 10px !important;
+  border-radius: 8px !important;
+  border: 2px solid #7aa9db !important;
+  background-color: #4a8fd9 !important;
+  color: white !important;
+  font-size: 14px !important;
+  font-weight: bold !important;
+  cursor: pointer !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2) !important;
+  transition: all 0.3s ease !important;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
+    Cantarell, sans-serif !important;
+}
+
+.ai-rtl-toggle-btn:hover {
+  background-color: #357abd !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3) !important;
+}
+
+.ai-rtl-toggle-btn.disabled {
+  background-color: #6b7280 !important;
+  border-color: #9ca3af !important;
+  opacity: 0.95 !important;
+}
+
+.ai-rtl-toggle-btn.disabled:hover {
+  background-color: #4b5563 !important;
+}
+
+.ai-rtl-toggle-btn:active {
+  transform: translateY(0) !important;
+}
+
+/* Platform-specific adjustments */
+/* ChatGPT */
+[data-message-author-role="assistant"].ai-rtl-fixed,
+[data-testid="conversation-turn-3"].ai-rtl-fixed {
+  direction: rtl !important;
+}
+
+/* Gemini */
+[data-test-id="response-text"].ai-rtl-fixed,
+.model-response-text.ai-rtl-fixed {
+  direction: rtl !important;
+}
+
+/* Claude */
+[data-is-streamed="true"].ai-rtl-fixed,
+.font-claude-message.ai-rtl-fixed {
+  direction: rtl !important;
+}
+
+/* Generic message containers */
+[class*="message"][class*="assistant"].ai-rtl-fixed,
+[class*="response"].ai-rtl-fixed,
+[role="assistant"].ai-rtl-fixed {
+  direction: rtl !important;
+}
+
+/* Ensure code blocks remain LTR */
+.ai-rtl-fixed pre,
+.ai-rtl-fixed code,
+.ai-rtl-fixed .code-block {
+  direction: ltr !important;
+  text-align: left !important;
+  unicode-bidi: embed !important;
+}
+
+/* Ensure inline code remains LTR */
+.ai-rtl-fixed code:not(pre code) {
+  direction: ltr !important;
+  unicode-bidi: embed !important;
+}
