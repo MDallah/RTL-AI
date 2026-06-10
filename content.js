@@ -50,10 +50,16 @@
     element.style.unicodeBidi = "";
   }
 
+  function getEnabledState(result) {
+    return result && typeof result === "object"
+      ? result.enabled !== false
+      : true;
+  }
+
   // Process all text nodes in the document
   function processTextNodes() {
-    chrome.storage.sync.get(["enabled"], function (result) {
-      const enabled = result.enabled !== false; // Default to true
+    chrome.storage.local.get(["enabled"], function (result) {
+      const enabled = getEnabledState(result);
 
       // Find AI response containers based on different platforms
       const selectors = [
@@ -191,11 +197,11 @@
 
     // Toggle functionality
     button.addEventListener("click", function () {
-      chrome.storage.sync.get(["enabled"], function (result) {
-        const currentEnabled = result.enabled !== false;
+      chrome.storage.local.get(["enabled"], function (result) {
+        const currentEnabled = getEnabledState(result);
         const newState = !currentEnabled;
 
-        chrome.storage.sync.set({ enabled: newState }, function () {
+        chrome.storage.local.set({ enabled: newState }, function () {
           updateButtonState(newState);
           processTextNodes();
         });
@@ -203,8 +209,8 @@
     });
 
     // Check current state and update button
-    chrome.storage.sync.get(["enabled"], function (result) {
-      updateButtonState(result.enabled);
+    chrome.storage.local.get(["enabled"], function (result) {
+      updateButtonState(getEnabledState(result));
     });
 
     document.body.appendChild(button);
