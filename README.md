@@ -31,7 +31,7 @@ A browser extension that automatically detects and fixes RTL (right-to-left) tex
 1. Download or clone this repository
 2. Open your browser and navigate to `chrome://extensions/`
 3. Enable "Developer mode" in the top right corner
-4. Click "Load unpacked" and select the `RTF AI` folder
+4. Click "Load unpacked" and select the `RTL AI` folder
 5. The extension is now installed!
 
 ### Firefox
@@ -39,7 +39,7 @@ A browser extension that automatically detects and fixes RTL (right-to-left) tex
 1. Download or clone this repository
 2. Open Firefox and navigate to `about:debugging#/runtime/this-firefox`
 3. Click "Load Temporary Add-on"
-4. Select the `manifest.json` file from the `RTF AI` folder
+4. Select the `manifest.json` file from the `RTL AI` folder
 5. The extension is now loaded!
 
 ## Usage
