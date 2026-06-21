@@ -35,10 +35,24 @@
   function applyRTL(element) {
     if (!element || element.classList.contains("ai-rtl-fixed")) return;
 
+    if (element.tagName === "P") {
+      if (element.dataset.rtlFixed) return;
+      element.style.direction = "rtl";
+      element.style.textAlign = "right";
+      element.dataset.rtlFixed = "true";
+      return;
+    }
+
     element.classList.add("ai-rtl-fixed");
     element.style.direction = "rtl";
     element.style.textAlign = "right";
     element.style.unicodeBidi = "plaintext";
+  }
+
+  // Apply RTL to text-bearing block children of a container (without class on container)
+  function applyRTLtoTextBlocks(container) {
+    if (!container) return;
+    container.querySelectorAll("p, h1, h2, h3, h4, h5, h6, li, td, th").forEach(applyRTL);
   }
 
   // Remove RTL styling from an element
@@ -48,6 +62,19 @@
     element.style.direction = "";
     element.style.textAlign = "";
     element.style.unicodeBidi = "";
+
+    if (element.dataset.rtlFixed) {
+      element.style.direction = "";
+      element.style.textAlign = "";
+      element.style.unicodeBidi = "";
+      delete element.dataset.rtlFixed;
+    }
+    element.querySelectorAll("[data-rtl-fixed]").forEach(function (p) {
+      p.style.direction = "";
+      p.style.textAlign = "";
+      p.style.unicodeBidi = "";
+      delete p.dataset.rtlFixed;
+    });
   }
 
   function getEnabledState(result) {
@@ -61,7 +88,6 @@
     chrome.storage.local.get(["enabled"], function (result) {
       const enabled = getEnabledState(result);
 
-      // Find AI response containers based on different platforms
       const selectors = [
         // ChatGPT
         '[data-message-author-role="assistant"]',
@@ -73,6 +99,7 @@
         // Claude
         '[data-is-streamed="true"]',
         ".font-claude-message",
+        ".font-claude-response",
         // Qwen
         ".qwen-response",
         ".assistant-message",
@@ -102,12 +129,13 @@
           const rtlPercentage = getRTLPercentage(text);
 
           if (enabled && rtlPercentage > 10) {
-            // If element is a span, apply RTL to its parent
             if (element.tagName === "SPAN") {
               const parent = element.parentElement;
               if (parent && !parent.classList.contains("ai-rtl-fixed")) {
                 applyRTL(parent);
               }
+            } else if (element.querySelector("p, h1, h2, h3, h4, h5, h6, li")) {
+              applyRTLtoTextBlocks(element);
             } else {
               applyRTL(element);
             }
@@ -117,7 +145,6 @@
         });
       });
 
-      // Also check all text nodes directly
       const walker = document.createTreeWalker(
         document.body,
         NodeFilter.SHOW_TEXT,
@@ -139,7 +166,6 @@
         if (enabled && rtlPercentage > 10) {
           const parent = textNode.parentElement;
           if (parent) {
-            // If parent is a span, apply RTL to its parent instead
             if (parent.tagName === "SPAN") {
               const grandparent = parent.parentElement;
               if (
@@ -148,7 +174,10 @@
               ) {
                 applyRTL(grandparent);
               }
-            } else if (!parent.classList.contains("ai-rtl-fixed")) {
+            } else if (
+              !parent.classList.contains("ai-rtl-fixed") &&
+              !parent.dataset.rtlFixed
+            ) {
               applyRTL(parent);
             }
           }
@@ -159,7 +188,6 @@
 
   // Create toggle button
   function createToggleButton() {
-    // Check if button already exists
     if (document.querySelector(".ai-rtl-toggle-btn")) return;
 
     const button = document.createElement("button");
@@ -167,7 +195,6 @@
     button.innerHTML = " ⇋ ";
     button.title = "Toggle RTL Fix";
 
-    // Position the button
     button.style.position = "fixed";
     button.style.bottom = "30px";
     button.style.right = "30px";
@@ -186,7 +213,6 @@
 
     function updateButtonState(enabled) {
       const isEnabled = enabled !== false;
-
       button.classList.toggle("disabled", !isEnabled);
       button.style.backgroundColor = isEnabled ? "#4a8fd9" : "#6b7280";
       button.style.borderColor = isEnabled ? "#4a8fd9" : "#9ca3af";
@@ -195,12 +221,10 @@
       button.title = isEnabled ? "RTL Fix is enabled" : "RTL Fix is disabled";
     }
 
-    // Toggle functionality
     button.addEventListener("click", function () {
       chrome.storage.local.get(["enabled"], function (result) {
         const currentEnabled = getEnabledState(result);
         const newState = !currentEnabled;
-
         chrome.storage.local.set({ enabled: newState }, function () {
           updateButtonState(newState);
           processTextNodes();
@@ -208,7 +232,6 @@
       });
     });
 
-    // Check current state and update button
     chrome.storage.local.get(["enabled"], function (result) {
       updateButtonState(getEnabledState(result));
     });
@@ -218,13 +241,9 @@
 
   // Initialize
   function init() {
-    // Create toggle button
     createToggleButton();
-
-    // Initial processing
     processTextNodes();
 
-    // Observe DOM changes for dynamic content
     const observer = new MutationObserver(function (mutations) {
       processTextNodes();
     });
@@ -235,13 +254,11 @@
     });
   }
 
-  // Wait for DOM to be ready
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", init);
   } else {
     init();
   }
 
-  // Also run on window load to catch late-loading content
   window.addEventListener("load", processTextNodes);
 })();

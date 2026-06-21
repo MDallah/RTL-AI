@@ -4,10 +4,9 @@
 .ai-rtl-fixed {
   direction: rtl !important;
   text-align: right !important;
-  unicode-bidi: plaintext !important;
 }
 
-/* Ensure RTL text is properly displayed */
+/* Force RTL on all descendants */
 .ai-rtl-fixed * {
   direction: rtl !important;
   text-align: right !important;
@@ -86,11 +85,9 @@
 .ai-rtl-fixed .code-block {
   direction: ltr !important;
   text-align: left !important;
-  unicode-bidi: embed !important;
 }
 
 /* Ensure inline code remains LTR */
 .ai-rtl-fixed code:not(pre code) {
   direction: ltr !important;
-  unicode-bidi: embed !important;
 }
