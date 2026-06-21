@@ -2,36 +2,64 @@
 (function () {
   "use strict";
 
-  // RTL character ranges for common RTL languages
-  const RTL_PATTERNS = [
-    /[\u0600-\u06FF]/, // Arabic
-    /[\u0750-\u077F]/, // Arabic Supplement
-    /[\uFB50-\uFDFF]/, // Arabic Presentation Forms-A
-    /[\uFE70-\uFEFF]/, // Arabic Presentation Forms-B
-    /[\u07C0-\u07FA]/, // NKo
-    /[\u08A0-\u08FF]/, // Arabic Extended-A
+  var RTL_PATTERNS = [
+    /[\u0600-\u06FF]/,
+    /[\u0750-\u077F]/,
+    /[\uFB50-\uFDFF]/,
+    /[\uFE70-\uFEFF]/,
+    /[\u07C0-\u07FA]/,
+    /[\u08A0-\u08FF]/,
   ];
 
-  // Check if text contains RTL characters
+  var BLOCK_TAGS = {
+    P: true,
+    DIV: true,
+    H1: true,
+    H2: true,
+    H3: true,
+    H4: true,
+    H5: true,
+    H6: true,
+    LI: true,
+    TD: true,
+    BLOCKQUOTE: true,
+    PRE: true,
+    OL: true,
+    UL: true,
+    SECTION: true,
+    ARTICLE: true,
+    DD: true,
+    DT: true,
+    BODY: true,
+    TABLE: true,
+    TR: true,
+    TH: true,
+    THEAD: true,
+  };
+
+  var enabledCache = true;
+
   function containsRTL(text) {
     if (!text) return false;
-    return RTL_PATTERNS.some((pattern) => pattern.test(text));
+    return RTL_PATTERNS.some(function (p) {
+      return p.test(text);
+    });
   }
 
-  // Get the percentage of RTL characters in text
   function getRTLPercentage(text) {
     if (!text || text.length === 0) return 0;
-    let rtlChars = 0;
-    for (let i = 0; i < text.length; i++) {
-      const char = text[i];
-      if (RTL_PATTERNS.some((pattern) => pattern.test(char))) {
+    var rtlChars = 0;
+    for (var i = 0; i < text.length; i++) {
+      if (
+        RTL_PATTERNS.some(function (p) {
+          return p.test(text[i]);
+        })
+      )
         rtlChars++;
-      }
     }
     return (rtlChars / text.length) * 100;
   }
 
-  // Apply RTL styling to an element
   function applyRTL(element) {
     if (!element || element.classList.contains("ai-rtl-fixed")) return;
 
@@ -47,15 +75,12 @@
     element.style.direction = "rtl";
     element.style.textAlign = "right";
     element.style.unicodeBidi = "plaintext";
+
+    if (element.tagName === "TABLE") {
+      element.setAttribute("dir", "rtl");
+    }
   }
 
-  // Apply RTL to text-bearing block children of a container (without class on container)
-  function applyRTLtoTextBlocks(container) {
-    if (!container) return;
-    container.querySelectorAll("p, h1, h2, h3, h4, h5, h6, li, td, th").forEach(applyRTL);
-  }
-
-  // Remove RTL styling from an element
   function removeRTL(element) {
     if (!element) return;
     element.classList.remove("ai-rtl-fixed");
@@ -63,134 +88,83 @@
     element.style.textAlign = "";
     element.style.unicodeBidi = "";
 
+    if (element.tagName === "TABLE") {
+      element.removeAttribute("dir");
+    }
+
     if (element.dataset.rtlFixed) {
       element.style.direction = "";
       element.style.textAlign = "";
       element.style.unicodeBidi = "";
       delete element.dataset.rtlFixed;
     }
-    element.querySelectorAll("[data-rtl-fixed]").forEach(function (p) {
-      p.style.direction = "";
-      p.style.textAlign = "";
-      p.style.unicodeBidi = "";
-      delete p.dataset.rtlFixed;
+
+    element.querySelectorAll("[data-rtl-fixed]").forEach(function (el) {
+      el.style.direction = "";
+      el.style.textAlign = "";
+      el.style.unicodeBidi = "";
+      delete el.dataset.rtlFixed;
     });
   }
 
-  function getEnabledState(result) {
-    return result && typeof result === "object"
-      ? result.enabled !== false
-      : true;
-  }
-
-  // Process all text nodes in the document
   function processTextNodes() {
-    chrome.storage.local.get(["enabled"], function (result) {
-      const enabled = getEnabledState(result);
+    if (!enabledCache) return;
 
-      const selectors = [
-        // ChatGPT
-        '[data-message-author-role="assistant"]',
-        '[data-testid="conversation-turn-3"]',
-        ".text-base",
-        // Gemini
-        '[data-test-id="response-text"]',
-        ".model-response-text",
-        // Claude
-        '[data-is-streamed="true"]',
-        ".font-claude-message",
-        ".font-claude-response",
-        // Qwen
-        ".qwen-response",
-        ".assistant-message",
-        // Kimi
-        ".kimi-message",
-        ".message-content",
-        // Google Studio
-        ".model-response",
-        ".response-container",
-        // DeepSeek
-        ".ds-message",
-        ".message-assistant",
-        // Perplexity
-        '[data-testid="answer"]',
-        ".prose",
-        // Generic selectors
-        '[class*="message"][class*="assistant"]',
-        '[class*="response"]',
-        '[class*="ai"]',
-        '[role="assistant"]',
-      ];
-
-      selectors.forEach((selector) => {
-        const elements = document.querySelectorAll(selector);
-        elements.forEach((element) => {
-          const text = element.textContent;
-          const rtlPercentage = getRTLPercentage(text);
-
-          if (enabled && rtlPercentage > 10) {
-            if (element.tagName === "SPAN") {
-              const parent = element.parentElement;
-              if (parent && !parent.classList.contains("ai-rtl-fixed")) {
-                applyRTL(parent);
-              }
-            } else if (element.querySelector("p, h1, h2, h3, h4, h5, h6, li")) {
-              applyRTLtoTextBlocks(element);
-            } else {
-              applyRTL(element);
-            }
-          } else if (!enabled) {
-            removeRTL(element);
-          }
-        });
-      });
-
-      const walker = document.createTreeWalker(
-        document.body,
-        NodeFilter.SHOW_TEXT,
-        {
-          acceptNode: function (node) {
-            if (node.parentElement.classList.contains("ai-rtl-toggle-btn")) {
-              return NodeFilter.FILTER_REJECT;
-            }
-            return NodeFilter.FILTER_ACCEPT;
-          },
-        },
-      );
-
-      let textNode;
-      while ((textNode = walker.nextNode())) {
-        const text = textNode.textContent;
-        const rtlPercentage = getRTLPercentage(text);
-
-        if (enabled && rtlPercentage > 10) {
-          const parent = textNode.parentElement;
-          if (parent) {
-            if (parent.tagName === "SPAN") {
-              const grandparent = parent.parentElement;
-              if (
-                grandparent &&
-                !grandparent.classList.contains("ai-rtl-fixed")
-              ) {
-                applyRTL(grandparent);
-              }
-            } else if (
-              !parent.classList.contains("ai-rtl-fixed") &&
-              !parent.dataset.rtlFixed
-            ) {
-              applyRTL(parent);
-            }
-          }
-        }
+    // Process tables with RTL content first (set dir attribute)
+    document.querySelectorAll("table").forEach(function (table) {
+      if (!table.hasAttribute("dir") && containsRTL(table.textContent)) {
+        table.setAttribute("dir", "rtl");
       }
     });
+
+    // Walk all text nodes and apply RTL to block parents
+    var walker = document.createTreeWalker(
+      document.body,
+      NodeFilter.SHOW_TEXT,
+      {
+        acceptNode: function (node) {
+          if (
+            node.parentElement &&
+            node.parentElement.classList.contains("ai-rtl-toggle-btn")
+          ) {
+            return NodeFilter.FILTER_REJECT;
+          }
+          return NodeFilter.FILTER_ACCEPT;
+        },
+      },
+    );
+
+    var textNode;
+    while ((textNode = walker.nextNode())) {
+      var rtlPercentage = getRTLPercentage(textNode.textContent);
+      if (rtlPercentage <= 10) continue;
+
+      var el = textNode.parentElement;
+      if (!el) continue;
+
+      // If parent is SPAN, go to grandparent (original behavior)
+      if (el.tagName === "SPAN") {
+        el = el.parentElement;
+        if (!el) continue;
+      }
+
+      // Walk up to the nearest block-level ancestor (skip inline elements)
+      while (el && !BLOCK_TAGS[el.tagName]) {
+        el = el.parentElement;
+      }
+      if (!el) continue;
+
+      if (el.classList.contains("ai-rtl-fixed")) continue;
+      if (el.dataset.rtlFixed) continue;
+
+      applyRTL(el);
+    }
   }
 
-  // Create toggle button
   function createToggleButton() {
     if (document.querySelector(".ai-rtl-toggle-btn")) return;
 
-    const button = document.createElement("button");
+    var button = document.createElement("button");
     button.className = "ai-rtl-toggle-btn";
     button.innerHTML = " ⇋ ";
     button.title = "Toggle RTL Fix";
@@ -212,45 +186,56 @@
     button.style.verticalAlign = "middle";
 
     function updateButtonState(enabled) {
-      const isEnabled = enabled !== false;
+      var isEnabled = enabled !== false;
       button.classList.toggle("disabled", !isEnabled);
       button.style.backgroundColor = isEnabled ? "#4a8fd9" : "#6b7280";
       button.style.borderColor = isEnabled ? "#4a8fd9" : "#9ca3af";
-      button.style.color = "white";
       button.innerHTML = "⇄";
       button.title = isEnabled ? "RTL Fix is enabled" : "RTL Fix is disabled";
     }
 
     button.addEventListener("click", function () {
       chrome.storage.local.get(["enabled"], function (result) {
-        const currentEnabled = getEnabledState(result);
-        const newState = !currentEnabled;
+        var newState = result.enabled === false;
         chrome.storage.local.set({ enabled: newState }, function () {
-          updateButtonState(newState);
-          processTextNodes();
+          enabledCache = newState;
+          updateButtonState(enabledCache);
+          if (enabledCache) {
+            processTextNodes();
+          } else {
+            document
+              .querySelectorAll(".ai-rtl-fixed, [data-rtl-fixed]")
+              .forEach(removeRTL);
+            document.querySelectorAll("table[dir]").forEach(function (t) {
+              t.removeAttribute("dir");
+            });
+          }
         });
       });
     });
 
     chrome.storage.local.get(["enabled"], function (result) {
-      updateButtonState(getEnabledState(result));
+      enabledCache = result.enabled !== false;
+      updateButtonState(enabledCache);
     });
 
     document.body.appendChild(button);
   }
 
-  // Initialize
   function init() {
     createToggleButton();
     processTextNodes();
 
-    const observer = new MutationObserver(function (mutations) {
-      processTextNodes();
+    var debounceTimer;
+    var observer = new MutationObserver(function () {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(processTextNodes, 100);
     });
 
     observer.observe(document.body, {
       childList: true,
       subtree: true,
+      characterData: true,
     });
   }
 
