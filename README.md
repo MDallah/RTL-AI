@@ -34,13 +34,15 @@ A browser extension that automatically detects and fixes RTL (right-to-left) tex
 4. Click "Load unpacked" and select the `RTL AI` folder
 5. The extension is now installed!
 
-### Firefox
+### Firefox (Permanent Installation)
 
-1. Download or clone this repository
-2. Open Firefox and navigate to `about:debugging#/runtime/this-firefox`
-3. Click "Load Temporary Add-on"
-4. Select the `manifest.json` file from the `RTL AI` folder
-5. The extension is now loaded!
+1. Open Firefox and navigate to `about:config`
+2. Search for `xpinstall.signatures.required` and set it to `false`
+3. Compress the extnsion files to `.xpi` or `.zip`
+4. Navigate to `about:addons`
+5. Click the gear icon → "Install Add-on From File..."
+6. Select the compressed file created earlier
+7. The extension is now installed permanently
 
 ## Usage
 

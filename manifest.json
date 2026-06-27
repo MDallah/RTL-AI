@@ -3,6 +3,11 @@
   "name": "RTL AI",
   "version": "1.0.0",
   "description": "Automatically detects and fixes RTL (right-to-left) text in AI responses from ChatGPT, Gemini, Claude, and more",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "rtl-ai@addon"
+    }
+  },
   "permissions": ["storage", "activeTab"],
   "content_scripts": [
     {
