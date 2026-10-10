@@ -1,15 +1,13 @@
 /* RTL AI - Styles */
 
-/* RTL Fixed Elements */
+/* RTL Fixed Elements.
+   Direction is resolved natively by the browser through the dir="auto"
+   attribute added in the content script. Here we only isolate the element
+   and align its content to the right, without forcing direction on every
+   descendant (which broke centered/left-aligned children). */
 .ai-rtl-fixed {
-  direction: rtl !important;
   text-align: right !important;
-}
-
-/* Force RTL on all descendants */
-.ai-rtl-fixed * {
-  direction: rtl !important;
-  text-align: right !important;
+  unicode-bidi: isolate !important;
 }
 
 /* Move list markers (bullets/numbers) to the right side */
@@ -17,24 +15,14 @@
 .ai-rtl-fixed ol,
 ul.ai-rtl-fixed,
 ol.ai-rtl-fixed {
-  direction: rtl !important;
-  text-align: right !important;
   padding-left: 0 !important;
   padding-right: 24px !important;
   list-style-position: outside !important;
 }
 
-.ai-rtl-fixed li,
-li.ai-rtl-fixed {
-  direction: rtl !important;
-  text-align: right !important;
-}
-
 /* Toggle Button Styles */
 .ai-rtl-toggle-btn {
   position: fixed !important;
-  bottom: 30px !important;
-  right: 30px !important;
   z-index: 999999 !important;
   padding: 5px 10px 7px 10px !important;
   border-radius: 8px !important;
@@ -57,6 +45,11 @@ li.ai-rtl-fixed {
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3) !important;
 }
 
+.ai-rtl-toggle-btn:focus-visible {
+  outline: 3px solid #1d4ed8 !important;
+  outline-offset: 2px !important;
+}
+
 .ai-rtl-toggle-btn.disabled {
   background-color: #6b7280 !important;
   border-color: #9ca3af !important;
@@ -71,41 +64,27 @@ li.ai-rtl-fixed {
   transform: translateY(0) !important;
 }
 
-/* Platform-specific adjustments */
-/* ChatGPT */
-[data-message-author-role="assistant"].ai-rtl-fixed,
-[data-testid="conversation-turn-3"].ai-rtl-fixed {
-  direction: rtl !important;
-}
-
-/* Gemini */
-[data-test-id="response-text"].ai-rtl-fixed,
-.model-response-text.ai-rtl-fixed {
-  direction: rtl !important;
-}
-
-/* Claude */
-[data-is-streamed="true"].ai-rtl-fixed,
-.font-claude-message.ai-rtl-fixed {
-  direction: rtl !important;
-}
-
-/* Generic message containers */
-[class*="message"][class*="assistant"].ai-rtl-fixed,
-[class*="response"].ai-rtl-fixed,
-[role="assistant"].ai-rtl-fixed {
-  direction: rtl !important;
-}
-
-/* Ensure code blocks remain LTR */
+/* Keep code blocks and inline code LTR and isolated so surrounding
+   punctuation is not mirrored. Covers both code inside a fixed element and
+   a code element that was itself marked as fixed. */
 .ai-rtl-fixed pre,
 .ai-rtl-fixed code,
-.ai-rtl-fixed .code-block {
+.ai-rtl-fixed .code-block,
+pre.ai-rtl-fixed,
+code.ai-rtl-fixed,
+.code-block.ai-rtl-fixed {
   direction: ltr !important;
   text-align: left !important;
+  unicode-bidi: isolate !important;
 }
 
-/* Ensure inline code remains LTR */
-.ai-rtl-fixed code:not(pre code) {
+.ai-rtl-fixed code:not(pre code),
+code.ai-rtl-fixed {
   direction: ltr !important;
+  unicode-bidi: isolate !important;
+}
+
+/* Isolate inline elements that commonly break bidi ordering */
+.ai-rtl-fixed a {
+  unicode-bidi: isolate !important;
 }

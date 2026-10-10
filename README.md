@@ -7,8 +7,15 @@ A browser extension that automatically detects and fixes RTL (right-to-left) tex
 - **Automatic RTL Detection**: Detects Arabic, Persian, Urdu, and other RTL languages in AI responses
 - **One-Click Toggle**: Easy toggle button to enable/disable the extension on any page
 - **Multi-Platform Support**: Works with ChatGPT, Gemini, Claude, Qwen, Kimi, Google Studio, DeepSeek, Perplexity, and more
-- **Smart Detection**: Only applies RTL styling when RTL content is detected (>10% RTL characters)
+- **Iframe Support**: Also runs inside embedded frames and editors (`all_frames`)
+- **TextBox Support**: Fixes RTL in textareas and `contenteditable` fields while you type
+- **Native Bidi**: Uses `dir="auto"` so the browser applies the Unicode bidi algorithm, giving accurate results for mixed Arabic/English/numbers
+- **Smart Detection**: Decides direction from the first strong character (with a percentage fallback for long text), so only genuinely RTL blocks are affected
+- **List & Table Support**: Moves list markers to the right side and sets `dir="rtl"` on RTL tables
 - **Code Block Preservation**: Keeps code blocks in LTR (left-to-right) format for readability
+- **Custom Websites**: Add any site from the toolbar popup (host access is requested on the fly)
+- **Toolbar Popup**: All settings in one popup, plus one-click "enable on this site"
+- **Configurable**: Default on/off, detection threshold, toggle button position, and extra websites
 - **Default On**: Extension is enabled by default for immediate use
 
 ## Supported Platforms
@@ -17,7 +24,7 @@ A browser extension that automatically detects and fixes RTL (right-to-left) tex
 - Gemini (gemini.google.com)
 - Claude (claude.ai)
 - Qwen (qwen.ai)
-- Kimi (kimi.moonshot.cn)
+- Kimi (kimi.ai, kimi.com)
 - Google AI Studio (aistudio.google.com)
 - DeepSeek (deepseek.com)
 - Perplexity (perplexity.ai)
@@ -36,21 +43,37 @@ A browser extension that automatically detects and fixes RTL (right-to-left) tex
 
 ### Firefox (Permanent Installation)
 
+Requires **Firefox 128 or newer**.
+
 1. Open Firefox and navigate to `about:config`
 2. Search for `xpinstall.signatures.required` and set it to `false`
-3. Compress the extnsion files to `.xpi` or `.zip`
+3. Compress the extension files to `.xpi` or `.zip`. Zip the files themselves so `manifest.json` is at the **root** of the archive (do not zip the parent folder).
 4. Navigate to `about:addons`
 5. Click the gear icon → "Install Add-on From File..."
 6. Select the compressed file created earlier
 7. The extension is now installed permanently
 
+> Firefox does not support `background.service_worker`, so the manifest declares both `background.service_worker` (for Chrome) and `background.scripts` (for Firefox). Chrome ignores `background.scripts`, Firefox uses it as an event page.
+
 ## Usage
 
 1. Navigate to any supported AI platform (ChatGPT, Gemini, Claude, etc.)
 2. The extension will automatically detect RTL text in AI responses
-3. A toggle button (🔄 RTL) will appear in the top-right corner of the page
+3. A toggle button (⇄) will appear on the page (bottom-right by default)
 4. Click the button to toggle the extension on/off
 5. When enabled, RTL text will be displayed right-to-left for better readability
+
+## Toolbar Popup
+
+Click the RTL AI toolbar icon to open the popup, which contains **all settings**:
+
+- **Enable/disable** the extension everywhere (header switch)
+- **This site**: **Enable on this site** for the current website (requests access and applies immediately) or **Disable on this site** to remove it
+- **Detection threshold (%)**: Minimum share of RTL characters before a block is treated as RTL (default `10`)
+- **Button position**: `bottom-right` (default), `bottom-left`, `top-right`, or `top-left`
+- **Additional websites**: Add/remove any site not in the default list
+
+Changes are applied live to open tabs.
 
 ## How It Works
 
@@ -61,13 +84,29 @@ The extension uses Unicode character ranges to detect RTL languages:
 - Arabic Presentation Forms (U+FB50–U+FDFF, U+FE70–U+FEFF)
 - And more
 
-When RTL content is detected (>10% of text), the extension applies rtl css.
+When RTL content is detected, the extension:
+
+- decides direction using the **first strong character** (like the browser's `dir="auto"`), so short mixed sentences such as `Hi محمد` stay LTR while `مرحبا Hi` becomes RTL. Long text that starts with a Latin word but is mostly RTL (e.g. `ChatGPT هو أداة مفيدة`) is still treated as RTL via the percentage fallback;
+- adds the `dir="auto"` attribute so the browser resolves direction with the native Unicode bidi algorithm (accurate for mixed Arabic/English/numbers); and
+- marks the element with `ai-rtl-fixed`, which isolates it and aligns its content to the right via CSS.
+
+Only the elements whose content is detected as RTL are processed, and only newly added or changed nodes are re-scanned as the page updates.
 
 ## Customization
 
-### Adding More Platforms
+### Settings
 
-To add support for additional AI platforms, edit `manifest.json` and add the URL to the `matches` array:
+All settings live in the toolbar popup: global enable/disable, detection threshold, toggle button position, and additional websites.
+
+### Adding More Websites
+
+Open the popup and type a domain under **Additional websites** (for example `example.com`), then click **Add**. The browser asks you to grant access to that site; once granted, the extension starts working there immediately. Remove a site with the **Remove** button. You can also use **Enable on this site** in the popup for the current page.
+
+Under the hood, a background script (`background.js`) registers the content script dynamically for the granted sites via `chrome.scripting.registerContentScripts`, since the `manifest.json` `matches` list is fixed at install time.
+
+### Adding Built-in Platforms
+
+To ship a platform by default (for all users), edit `manifest.json` and add the URL to the `matches` array:
 
 ```json
 "matches": [
@@ -75,17 +114,14 @@ To add support for additional AI platforms, edit `manifest.json` and add the URL
 ]
 ```
 
-Then add appropriate CSS selectors to `content.js` in the `selectors` array.
+Then add any platform-specific selectors to `styles.css`.
 
 ### Adjusting RTL Threshold
 
-To change the RTL detection threshold, modify the percentage in `content.js`:
+Open the popup and change **Detection threshold (%)**, or edit the default in `content.js`:
 
 ```javascript
-if (enabled && rtlPercentage > 10) {
-  // Change 10 to your desired percentage
-  applyRTL(element);
-}
+var DEFAULT_THRESHOLD = 10; // change to your preferred percentage
 ```
 
 ## Troubleshooting
@@ -98,9 +134,9 @@ if (enabled && rtlPercentage > 10) {
 
 ### RTL not being detected
 
-- The extension requires >10% RTL characters to trigger
+- The extension requires the configured share of RTL characters to trigger (default 10%)
 - Check that the text contains actual RTL Unicode characters
-- Try toggling the extension off and on
+- Lower the threshold in the popup and try again
 
 ### Code blocks appearing in RTL
 
