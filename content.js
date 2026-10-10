@@ -117,6 +117,23 @@
       }
     });
 
+    // Process lists so markers (bullets/numbers) move to the right side
+    document.querySelectorAll("li").forEach(function (li) {
+      if (!containsRTL(li.textContent)) return;
+
+      if (!li.classList.contains("ai-rtl-fixed")) {
+        applyRTL(li);
+      }
+
+      var list = li.parentElement;
+      while (list && list.tagName !== "UL" && list.tagName !== "OL") {
+        list = list.parentElement;
+      }
+      if (list && !list.classList.contains("ai-rtl-fixed")) {
+        applyRTL(list);
+      }
+    });
+
     // Walk all text nodes and apply RTL to block parents
     var walker = document.createTreeWalker(
       document.body,

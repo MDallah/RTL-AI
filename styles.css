@@ -12,6 +12,24 @@
   text-align: right !important;
 }
 
+/* Move list markers (bullets/numbers) to the right side */
+.ai-rtl-fixed ul,
+.ai-rtl-fixed ol,
+ul.ai-rtl-fixed,
+ol.ai-rtl-fixed {
+  direction: rtl !important;
+  text-align: right !important;
+  padding-left: 0 !important;
+  padding-right: 24px !important;
+  list-style-position: outside !important;
+}
+
+.ai-rtl-fixed li,
+li.ai-rtl-fixed {
+  direction: rtl !important;
+  text-align: right !important;
+}
+
 /* Toggle Button Styles */
 .ai-rtl-toggle-btn {
   position: fixed !important;
