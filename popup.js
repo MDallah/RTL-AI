@@ -5,12 +5,11 @@
   var DEFAULTS = {
     enabled: true,
     threshold: 10,
-    buttonPosition: "bottom-right",
   };
 
   var enabledEl = document.getElementById("enabled");
   var thresholdEl = document.getElementById("threshold");
-  var positionEl = document.getElementById("buttonPosition");
+  var showButtonEl = document.getElementById("showButton");
   var settingsNoteEl = document.getElementById("settingsNote");
 
   var hostEl = document.getElementById("host");
@@ -70,11 +69,14 @@
     }
   }
 
-  // example.com -> https://example.com/*
+  // example.com -> https://example.com/*; localhost defaults to http.
   function normalizeSite(value) {
     var text = (value || "").trim();
     if (!text) return null;
-    if (!/^https?:\/\//i.test(text)) text = "https://" + text;
+    if (!/^https?:\/\//i.test(text)) {
+      var isLocal = /^(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/i.test(text);
+      text = (isLocal ? "http://" : "https://") + text;
+    }
 
     var url;
     try {
@@ -83,22 +85,23 @@
       return null;
     }
 
+    var host = url.hostname;
     if (
       (url.protocol !== "https:" && url.protocol !== "http:") ||
-      !url.hostname ||
-      url.hostname.indexOf(".") === -1
+      !host ||
+      (host.indexOf(".") === -1 && host !== "localhost")
     ) {
       return null;
     }
 
     return {
-      hostname: url.hostname,
-      pattern: url.protocol + "//" + url.hostname + "/*",
+      hostname: host,
+      pattern: url.protocol + "//" + host + "/*",
     };
   }
 
-  function injectIntoCurrentTab(hostname) {
-    if (!activeTab || activeTab.id == null || !hostname) return;
+  function injectIntoCurrentTab(pattern) {
+    if (!activeTab || activeTab.id == null || !pattern) return;
 
     var url;
     try {
@@ -106,28 +109,82 @@
     } catch (e) {
       return;
     }
-    if (url.hostname !== hostname) return;
+    if (url.protocol + "//" + url.hostname + "/*" !== pattern) return;
 
     chrome.scripting.executeScript({
-      target: { tabId: activeTab.id },
+      target: { tabId: activeTab.id, allFrames: true },
       files: ["content.js"],
     });
     chrome.scripting.insertCSS({
-      target: { tabId: activeTab.id },
+      target: { tabId: activeTab.id, allFrames: true },
       files: ["styles.css"],
     });
   }
 
   function addSite(pattern, hostname, onDone) {
+    var alreadyListed = customSites.indexOf(pattern) !== -1;
+
+    // Save first: Chrome closes the popup while showing its permission
+    // prompt, so a callback-only save can be lost. The background script only
+    // registers origins that actually have permission.
+    if (!alreadyListed) {
+      customSites.push(pattern);
+      chrome.storage.local.set({ customSites: customSites });
+    }
+
+    // Keep this call directly in the click handler so the browser keeps the
+    // user gesture it requires for showing the permission prompt.
     chrome.permissions.request({ origins: [pattern] }, function (granted) {
-      if (!granted) {
-        onDone(false, "Access was not granted.");
+      var error = chrome.runtime.lastError;
+
+      if (error || !granted) {
+        customSites = customSites.filter(function (site) {
+          return site !== pattern;
+        });
+        chrome.storage.local.set({ customSites: customSites });
+        onDone(
+          false,
+          error
+            ? error.message || "Could not request access."
+            : "Access was not granted.",
+        );
         return;
       }
-      if (customSites.indexOf(pattern) === -1) customSites.push(pattern);
-      chrome.storage.local.set({ customSites: customSites }, function () {
-        injectIntoCurrentTab(hostname);
-        onDone(true, "Added " + hostname);
+
+      injectIntoCurrentTab(pattern);
+      onDone(true, "Added " + hostname);
+    });
+  }
+
+  function pruneUngrantedSites(cb) {
+    if (!customSites.length) {
+      if (cb) cb();
+      return;
+    }
+
+    var remaining = customSites.length;
+    var granted = [];
+
+    customSites.forEach(function (pattern, index) {
+      chrome.permissions.contains({ origins: [pattern] }, function (hasIt) {
+        if (hasIt) granted.push({ pattern: pattern, index: index });
+        remaining -= 1;
+
+        if (remaining > 0) return;
+
+        granted.sort(function (a, b) {
+          return a.index - b.index;
+        });
+        var next = granted.map(function (entry) {
+          return entry.pattern;
+        });
+
+        if (next.length !== customSites.length) {
+          customSites = next;
+          chrome.storage.local.set({ customSites: customSites });
+        }
+
+        if (cb) cb();
       });
     });
   }
@@ -162,15 +219,14 @@
     }
 
     var hostname = url.hostname;
+    var currentPattern = url.protocol + "//" + hostname + "/*";
     hostEl.textContent = hostname;
 
     var isDefault = defaultMatches().some(function (pattern) {
       return hostMatchesPattern(pattern, hostname);
     });
 
-    var customIndex = customSites.findIndex(function (pattern) {
-      return hostFromPattern(pattern) === hostname;
-    });
+    var customIndex = customSites.indexOf(currentPattern);
 
     if (isDefault) {
       addCurrentBtn.hidden = true;
@@ -198,7 +254,7 @@
     removeCurrentBtn.hidden = true;
     setNote(siteNoteEl, "");
     addCurrentBtn.onclick = function () {
-      addSite(url.protocol + "//" + hostname + "/*", hostname, function (ok, msg) {
+      addSite(currentPattern, hostname, function (ok, msg) {
         if (!ok) {
           setNote(siteNoteEl, msg, "err");
           return;
@@ -250,15 +306,9 @@
     if (threshold > 100) threshold = 100;
     thresholdEl.value = threshold;
 
-    chrome.storage.local.set(
-      {
-        threshold: threshold,
-        buttonPosition: positionEl.value,
-      },
-      function () {
-        setNote(settingsNoteEl, "Saved.", "ok");
-      },
-    );
+    chrome.storage.local.set({ threshold: threshold }, function () {
+      setNote(settingsNoteEl, "Saved.", "ok");
+    });
   }
 
   enabledEl.addEventListener("change", function () {
@@ -266,7 +316,19 @@
   });
 
   thresholdEl.addEventListener("change", saveSettings);
-  positionEl.addEventListener("change", saveSettings);
+
+  showButtonEl.addEventListener("change", function () {
+    var hidden = !showButtonEl.checked;
+    var payload = { buttonHidden: hidden };
+
+    // Hiding the floating button must not turn RTL fixing off.
+    if (hidden) {
+      payload.enabled = true;
+      enabledEl.checked = true;
+    }
+
+    chrome.storage.local.set(payload);
+  });
 
   addSiteBtn.addEventListener("click", function () {
     var site = normalizeSite(siteInput.value);
@@ -294,21 +356,37 @@
   });
 
   chrome.storage.local.get(
-    ["enabled", "threshold", "buttonPosition", "customSites"],
+    ["enabled", "threshold", "buttonHidden", "customSites"],
     function (result) {
       enabledEl.checked = result.enabled !== false;
       thresholdEl.value =
         typeof result.threshold === "number"
           ? result.threshold
           : DEFAULTS.threshold;
-      positionEl.value = result.buttonPosition || DEFAULTS.buttonPosition;
+
+      showButtonEl.checked = result.buttonHidden !== true;
+
       customSites = Array.isArray(result.customSites) ? result.customSites : [];
 
-      chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-        activeTab = tabs && tabs[0] ? tabs[0] : null;
-        renderCurrentSite();
-        renderSiteList();
+      pruneUngrantedSites(function () {
+        chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+          activeTab = tabs && tabs[0] ? tabs[0] : null;
+          renderCurrentSite();
+          renderSiteList();
+        });
       });
     },
   );
+
+  // Keep the popup in sync while it is open.
+  chrome.storage.onChanged.addListener(function (changes, area) {
+    if (area !== "local") return;
+
+    if (changes.enabled) {
+      enabledEl.checked = changes.enabled.newValue !== false;
+    }
+    if (changes.buttonHidden) {
+      showButtonEl.checked = changes.buttonHidden.newValue !== true;
+    }
+  });
 })();

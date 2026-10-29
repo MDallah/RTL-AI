@@ -260,6 +260,30 @@
         border-color: var(--danger);
       }
 
+      .hint {
+        margin: 6px 0 0;
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .check-field {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 10px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      .check-field input {
+        width: 16px;
+        height: 16px;
+        margin: 0;
+        accent-color: var(--accent);
+        cursor: pointer;
+      }
+
       .note {
         display: block;
         margin: 6px 0 0;
@@ -309,13 +333,14 @@
       <p class="label">Settings</p>
       <label class="field" for="threshold">Detection threshold (%)</label>
       <input type="number" id="threshold" min="0" max="100" step="1" />
-      <label class="field" for="buttonPosition">Button position</label>
-      <select id="buttonPosition">
-        <option value="bottom-right">Bottom right</option>
-        <option value="bottom-left">Bottom left</option>
-        <option value="top-right">Top right</option>
-        <option value="top-left">Top left</option>
-      </select>
+      <label class="check-field" for="showButton">
+        <input type="checkbox" id="showButton" />
+        <span>Show the floating toggle button</span>
+      </label>
+      <p class="hint">
+        Drag the ⇄ button on a page to move it; the new spot is saved
+        automatically. Hiding the button does not turn RTL fixing off.
+      </p>
       <p class="note ok" id="settingsNote"></p>
     </section>
 
@@ -331,6 +356,10 @@
         />
         <button id="addSite" type="button">Add</button>
       </div>
+      <p class="hint">
+        Your browser asks for access when you add a site. Allow it so RTL AI
+        can run there.
+      </p>
       <span class="note" id="siteListNote"></span>
       <ul id="siteList" class="site-list"></ul>
     </section>
