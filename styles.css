@@ -23,45 +23,95 @@ ol.ai-rtl-fixed {
 /* Toggle Button Styles */
 .ai-rtl-toggle-btn {
   position: fixed !important;
-  z-index: 999999 !important;
-  padding: 5px 10px 7px 10px !important;
-  border-radius: 8px !important;
-  border: 2px solid #7aa9db !important;
-  background-color: #4a8fd9 !important;
-  color: white !important;
-  font-size: 14px !important;
-  font-weight: bold !important;
-  cursor: pointer !important;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2) !important;
-  transition: all 0.3s ease !important;
+  z-index: 2147483647 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 42px !important;
+  height: 42px !important;
+  padding: 0 !important;
+  border-radius: 50% !important;
+  border: 1px solid rgba(255, 255, 255, 0.35) !important;
+  background: linear-gradient(145deg, #5ba1e8, #3b7fc7) !important;
+  color: #fff !important;
+  line-height: 1 !important;
+  cursor: grab !important;
+  touch-action: none !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+  -webkit-user-drag: none !important;
+  opacity: 0.92 !important;
+  box-shadow:
+    0 4px 14px rgba(29, 78, 216, 0.35),
+    0 1px 3px rgba(0, 0, 0, 0.25) !important;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    background 0.18s ease,
+    opacity 0.18s ease !important;
   font-family:
     -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
     Cantarell, sans-serif !important;
 }
 
+.ai-rtl-toggle-btn svg {
+  display: block !important;
+  width: 20px !important;
+  height: 20px !important;
+  pointer-events: none !important;
+}
+
 .ai-rtl-toggle-btn:hover {
-  background-color: #357abd !important;
-  transform: translateY(-2px) !important;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3) !important;
+  background: linear-gradient(145deg, #6ab1f5, #4489d3) !important;
+  transform: translateY(-2px) scale(1.04) !important;
+  opacity: 1 !important;
+  box-shadow:
+    0 7px 22px rgba(29, 78, 216, 0.42),
+    0 2px 5px rgba(0, 0, 0, 0.28) !important;
 }
 
 .ai-rtl-toggle-btn:focus-visible {
-  outline: 3px solid #1d4ed8 !important;
-  outline-offset: 2px !important;
+  outline: 3px solid #93c5fd !important;
+  outline-offset: 3px !important;
 }
 
 .ai-rtl-toggle-btn.disabled {
-  background-color: #6b7280 !important;
-  border-color: #9ca3af !important;
-  opacity: 0.95 !important;
+  background: linear-gradient(145deg, #98a1af, #6b7280) !important;
+  border-color: rgba(255, 255, 255, 0.25) !important;
+  opacity: 0.9 !important;
+  box-shadow:
+    0 4px 14px rgba(0, 0, 0, 0.22),
+    0 1px 3px rgba(0, 0, 0, 0.2) !important;
 }
 
 .ai-rtl-toggle-btn.disabled:hover {
-  background-color: #4b5563 !important;
+  background: linear-gradient(145deg, #a5aeba, #737b88) !important;
+  transform: none !important;
 }
 
 .ai-rtl-toggle-btn:active {
-  transform: translateY(0) !important;
+  transform: translateY(0) scale(0.95) !important;
+}
+
+.ai-rtl-toggle-btn.dragging,
+.ai-rtl-toggle-btn.dragging:hover,
+.ai-rtl-toggle-btn.dragging:active {
+  cursor: grabbing !important;
+  transform: none !important;
+  transition: none !important;
+  opacity: 1 !important;
+  box-shadow: 0 10px 28px rgba(29, 78, 216, 0.45) !important;
+}
+
+.ai-rtl-toggle-btn.disabled.dragging {
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-rtl-toggle-btn {
+    transition: none !important;
+  }
 }
 
 /* Keep code blocks and inline code LTR and isolated so surrounding

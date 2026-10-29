@@ -2,6 +2,11 @@
 (function () {
   "use strict";
 
+  // A page can be injected more than once (for example, once by the popup and
+  // once by the background permission handler). Only initialize once.
+  if (window.__rtlAiContentLoaded) return;
+  window.__rtlAiContentLoaded = true;
+
   var RTL_PATTERNS = [
     /[\u0600-\u06FF]/,
     /[\u0750-\u077F]/,
@@ -73,6 +78,10 @@
   var enabledCache = true;
   var thresholdValue = DEFAULT_THRESHOLD;
   var buttonPosition = DEFAULT_POSITION;
+  var buttonCoords = null;
+  var buttonHidden = false;
+
+  var BUTTON_MARGIN = 6;
 
   function containsRTL(text) {
     if (!text) return false;
@@ -265,6 +274,45 @@
     }
   }
 
+  function sanitizeCoords(value) {
+    if (!value || typeof value !== "object") return null;
+    var left = Number(value.left);
+    var top = Number(value.top);
+    if (!isFinite(left) || !isFinite(top)) return null;
+    return { left: left, top: top };
+  }
+
+  // Keep the button fully inside the viewport after dragging or resizing.
+  function clampButtonCoords(left, top, button) {
+    var rect = button ? button.getBoundingClientRect() : null;
+    var width = rect && rect.width ? rect.width : 36;
+    var height = rect && rect.height ? rect.height : 28;
+    var maxLeft = Math.max(
+      BUTTON_MARGIN,
+      window.innerWidth - width - BUTTON_MARGIN,
+    );
+    var maxTop = Math.max(
+      BUTTON_MARGIN,
+      window.innerHeight - height - BUTTON_MARGIN,
+    );
+
+    return {
+      left: Math.min(Math.max(BUTTON_MARGIN, left), maxLeft),
+      top: Math.min(Math.max(BUTTON_MARGIN, top), maxTop),
+    };
+  }
+
+  function moveButtonTo(button, left, top) {
+    if (!button) return null;
+
+    var pos = clampButtonCoords(left, top, button);
+    button.style.bottom = "";
+    button.style.right = "";
+    button.style.left = pos.left + "px";
+    button.style.top = pos.top + "px";
+    return pos;
+  }
+
   function applyButtonPosition() {
     var button = document.querySelector(".ai-rtl-toggle-btn");
     if (!button) return;
@@ -273,6 +321,11 @@
     button.style.bottom = "";
     button.style.left = "";
     button.style.right = "";
+
+    if (buttonPosition === "custom" && buttonCoords) {
+      moveButtonTo(button, buttonCoords.left, buttonCoords.top);
+      return;
+    }
 
     if (buttonPosition === "top-right") {
       button.style.top = "30px";
@@ -295,8 +348,6 @@
 
     var isEnabled = enabled !== false;
     button.classList.toggle("disabled", !isEnabled);
-    button.style.backgroundColor = isEnabled ? "#4a8fd9" : "#6b7280";
-    button.style.borderColor = isEnabled ? "#4a8fd9" : "#9ca3af";
     button.setAttribute("aria-pressed", isEnabled ? "true" : "false");
     button.setAttribute(
       "aria-label",
@@ -304,35 +355,133 @@
         ? "RTL Fix is enabled. Activate to disable."
         : "RTL Fix is disabled. Activate to enable.",
     );
-    button.title = isEnabled ? "RTL Fix is enabled" : "RTL Fix is disabled";
+    button.title = isEnabled
+      ? "RTL Fix is enabled (drag to move)"
+      : "RTL Fix is disabled (drag to move)";
+  }
+
+  function createButtonIcon() {
+    var svgNS = "http://www.w3.org/2000/svg";
+    var svg = document.createElementNS(svgNS, "svg");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("width", "20");
+    svg.setAttribute("height", "20");
+    svg.setAttribute("fill", "none");
+    svg.setAttribute("stroke", "currentColor");
+    svg.setAttribute("stroke-width", "2.2");
+    svg.setAttribute("stroke-linecap", "round");
+    svg.setAttribute("stroke-linejoin", "round");
+    svg.setAttribute("aria-hidden", "true");
+    svg.setAttribute("focusable", "false");
+
+    [
+      "m16 3 4 4-4 4",
+      "M20 7H4",
+      "m8 21-4-4 4-4",
+      "M4 17h16",
+    ].forEach(function (d) {
+      var path = document.createElementNS(svgNS, "path");
+      path.setAttribute("d", d);
+      svg.appendChild(path);
+    });
+
+    return svg;
   }
 
   function createToggleButton() {
+    if (buttonHidden) return;
     if (document.querySelector(".ai-rtl-toggle-btn")) return;
 
     var button = document.createElement("button");
     button.type = "button";
     button.className = "ai-rtl-toggle-btn";
-    button.textContent = "⇄";
+    button.appendChild(createButtonIcon());
     button.setAttribute("aria-label", "Toggle RTL Fix");
     button.setAttribute("aria-pressed", "true");
-    button.title = "Toggle RTL Fix";
+    button.setAttribute("draggable", "false");
+    button.title = "Toggle RTL Fix (drag to move)";
 
-    button.style.position = "fixed";
-    button.style.zIndex = "999999";
-    button.style.padding = "5px 10px";
-    button.style.borderRadius = "8px";
-    button.style.border = "2px solid #4a8fd9";
-    button.style.backgroundColor = "#4a8fd9";
-    button.style.color = "white";
-    button.style.fontSize = "14px";
-    button.style.fontWeight = "bold";
-    button.style.cursor = "pointer";
-    button.style.boxShadow = "0 2px 10px rgba(0,0,0,0.2)";
-    button.style.transition = "all 0.3s ease";
-    button.style.verticalAlign = "middle";
+    var dragState = null;
+    var lastDragEnd = 0;
 
-    button.addEventListener("click", function () {
+    button.addEventListener("pointerdown", function (e) {
+      if (e.button !== undefined && e.button !== 0) return;
+
+      var rect = button.getBoundingClientRect();
+      dragState = {
+        pointerId: e.pointerId,
+        startX: e.clientX,
+        startY: e.clientY,
+        offsetX: e.clientX - rect.left,
+        offsetY: e.clientY - rect.top,
+        moved: false,
+      };
+
+      try {
+        button.setPointerCapture(e.pointerId);
+      } catch (err) {
+        // Pointer capture is best-effort.
+      }
+    });
+
+    button.addEventListener("pointermove", function (e) {
+      if (!dragState || e.pointerId !== dragState.pointerId) return;
+
+      var dx = e.clientX - dragState.startX;
+      var dy = e.clientY - dragState.startY;
+
+      // Wait for a small movement so plain clicks still toggle.
+      if (!dragState.moved && Math.abs(dx) + Math.abs(dy) < 5) return;
+
+      if (!dragState.moved) {
+        dragState.moved = true;
+        button.classList.add("dragging");
+      }
+
+      moveButtonTo(
+        button,
+        e.clientX - dragState.offsetX,
+        e.clientY - dragState.offsetY,
+      );
+    });
+
+    function endDrag(e) {
+      if (!dragState || (e && e.pointerId !== dragState.pointerId)) return;
+
+      var moved = dragState.moved;
+      dragState = null;
+      button.classList.remove("dragging");
+
+      try {
+        button.releasePointerCapture(e.pointerId);
+      } catch (err) {
+        // Nothing captured.
+      }
+
+      if (!moved) return;
+
+      lastDragEnd = Date.now();
+      var rect = button.getBoundingClientRect();
+      buttonCoords = { left: Math.round(rect.left), top: Math.round(rect.top) };
+      buttonPosition = "custom";
+
+      chrome.storage.local.set({
+        buttonPosition: "custom",
+        buttonCoords: buttonCoords,
+      });
+    }
+
+    button.addEventListener("pointerup", endDrag);
+    button.addEventListener("pointercancel", endDrag);
+
+    button.addEventListener("click", function (e) {
+      // A drag repositions the button; it should not toggle the extension.
+      if (Date.now() - lastDragEnd < 400) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+
       // storage.onChanged applies the new state in every frame.
       chrome.storage.local.set({ enabled: !enabledCache });
     });
@@ -340,6 +489,17 @@
     document.body.appendChild(button);
     applyButtonPosition();
     updateButtonState(enabledCache);
+  }
+
+  function syncButtonVisibility() {
+    var existing = document.querySelector(".ai-rtl-toggle-btn");
+
+    if (buttonHidden) {
+      if (existing) existing.remove();
+      return;
+    }
+
+    if (!existing) createToggleButton();
   }
 
   function flushRoots() {
@@ -395,7 +555,13 @@
 
   function readSettings(cb) {
     chrome.storage.local.get(
-      ["enabled", "threshold", "buttonPosition"],
+      [
+        "enabled",
+        "threshold",
+        "buttonPosition",
+        "buttonCoords",
+        "buttonHidden",
+      ],
       function (result) {
         enabledCache = result.enabled !== false;
         thresholdValue =
@@ -403,6 +569,8 @@
             ? result.threshold
             : DEFAULT_THRESHOLD;
         buttonPosition = result.buttonPosition || DEFAULT_POSITION;
+        buttonCoords = sanitizeCoords(result.buttonCoords);
+        buttonHidden = result.buttonHidden === true;
         if (cb) cb();
       },
     );
@@ -452,12 +620,24 @@
         buttonPosition = changes.buttonPosition.newValue || DEFAULT_POSITION;
         applyButtonPosition();
       }
+      if (changes.buttonCoords) {
+        buttonCoords = sanitizeCoords(changes.buttonCoords.newValue);
+        applyButtonPosition();
+      }
+      if (changes.buttonHidden) {
+        buttonHidden = changes.buttonHidden.newValue === true;
+        syncButtonVisibility();
+      }
 
       if (reload) applyEnabledState();
     });
 
+    window.addEventListener("resize", function () {
+      applyButtonPosition();
+    });
+
     readSettings(function () {
-      createToggleButton();
+      syncButtonVisibility();
       applyEnabledState();
     });
   }
